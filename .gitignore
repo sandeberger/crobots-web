@@ -10,3 +10,5 @@ tsconfig.tsbuildinfo
 *.tsbuildinfo
 bash.exe.stackdump
 .vercel
+
+.vercel

@@ -156,7 +156,17 @@ export function Editor({
       }),
     });
     viewRef.current = view;
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && parentRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        viewRef.current?.requestMeasure();
+      });
+      resizeObserver.observe(parentRef.current);
+    }
+
     return () => {
+      resizeObserver?.disconnect();
       view.destroy();
       viewRef.current = null;
     };
