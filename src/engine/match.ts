@@ -5,7 +5,7 @@ import { makeIntrinsicHost } from './intrinsics';
 import { LexError, tokenize } from './lexer';
 import { parse, ParseError } from './parser';
 import { RNG } from './rng';
-import { Robot } from './types';
+import { Robot, RobotCapabilities } from './types';
 import { VM } from './vm';
 
 export interface RobotSource {
@@ -74,6 +74,12 @@ export function prepareMatch(config: MatchConfig): PrepareResult {
         trail: [],
         damageFlash: 0,
         lastDamage: 0,
+        capabilities: analyzeCapabilities(source),
+        lastScanHeading: 0,
+        lastScanTick: -1,
+        lastCannonHeading: 0,
+        lastCannonTick: -1,
+        travel: 0,
       };
       arena.addRobot(robot);
     } catch (e) {
@@ -140,6 +146,18 @@ export function tickMatch(state: MatchState): void {
     state.finished = true;
     state.winner = aliveRobots.length === 1 ? aliveRobots[0] : null;
   }
+}
+
+function analyzeCapabilities(source: string): RobotCapabilities {
+  const stripped = source.replace(/\/\*[\s\S]*?\*\//g, '');
+  const has = (name: string) => new RegExp(`\\b${name}\\s*\\(`).test(stripped);
+  return {
+    drive: has('drive'),
+    cannon: has('cannon'),
+    scan: has('scan'),
+    gps: has('loc_x') || has('loc_y'),
+    status: has('damage') || has('speed'),
+  };
 }
 
 function placeRobots(robots: Robot[], rng: RNG): void {

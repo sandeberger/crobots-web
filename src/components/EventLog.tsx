@@ -8,9 +8,15 @@ type LogLine = {
   text: string;
 };
 
-export function EventLog({ state }: { state: MatchState | null }) {
+export interface EventLogProps {
+  state: MatchState | null;
+  expanded: boolean;
+  onToggle: () => void;
+}
+
+export function EventLog({ state, expanded, onToggle }: EventLogProps) {
   const lines = useMemo<LogLine[]>(() => {
-    if (!state) return [];
+    if (!state || !expanded) return [];
     const robots = state.arena.robots;
     const nameOf = (id: number) =>
       (robots.find((r) => r.id === id)?.name ?? `#${id}`).toUpperCase();
@@ -48,23 +54,35 @@ export function EventLog({ state }: { state: MatchState | null }) {
           };
       }
     });
-  }, [state, state?.arena.tick, state?.arena.events.length]);
+  }, [state, state?.arena.tick, state?.arena.events.length, expanded]);
 
   return (
-    <div className="eventlog">
-      <div className="section-header magenta">Telemetry</div>
-      <div className="eventlog-body">
-        {lines.length === 0 ? (
-          <div className="muted">— no signal —</div>
-        ) : (
-          lines.map((l) => (
-            <div key={l.key} className={`eventlog-line k-${l.kind}`}>
-              <span className="eventlog-tick">t{l.tick.toString().padStart(4, '0')}</span>
-              {l.text}
-            </div>
-          ))
-        )}
+    <div className={`eventlog ${expanded ? '' : 'collapsed'}`}>
+      <div className="section-header magenta">
+        <span className="section-title">Telemetry</span>
+        <button
+          className="section-action"
+          onClick={onToggle}
+          title={expanded ? 'Dölj logg (T)' : 'Visa logg (T)'}
+          aria-label="Toggle telemetry"
+        >
+          {expanded ? '▾' : '▸'}
+        </button>
       </div>
+      {expanded && (
+        <div className="eventlog-body">
+          {lines.length === 0 ? (
+            <div className="muted">— no signal —</div>
+          ) : (
+            lines.map((l) => (
+              <div key={l.key} className={`eventlog-line k-${l.kind}`}>
+                <span className="eventlog-tick">t{l.tick.toString().padStart(4, '0')}</span>
+                {l.text}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

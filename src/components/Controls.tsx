@@ -4,14 +4,16 @@ export interface ControlsProps {
   hasMatch: boolean;
   speed: number;
   showScans: boolean;
-  showTelemetry: boolean;
+  audioMuted: boolean;
+  voiceEnabled: boolean;
   onStart: () => void;
   onPause: () => void;
   onStep: () => void;
   onReset: () => void;
   onSpeedChange: (s: number) => void;
   onToggleScans: () => void;
-  onToggleTelemetry: () => void;
+  onToggleAudio: () => void;
+  onToggleVoice: () => void;
   onShowHelp: () => void;
 }
 
@@ -23,14 +25,16 @@ export function Controls({
   hasMatch,
   speed,
   showScans,
-  showTelemetry,
+  audioMuted,
+  voiceEnabled,
   onStart,
   onPause,
   onStep,
   onReset,
   onSpeedChange,
   onToggleScans,
-  onToggleTelemetry,
+  onToggleAudio,
+  onToggleVoice,
   onShowHelp,
 }: ControlsProps) {
   return (
@@ -83,11 +87,18 @@ export function Controls({
           ⌖ Scan
         </button>
         <button
-          className={`fx-toggle ${showTelemetry ? 'on' : ''}`}
-          onClick={onToggleTelemetry}
-          title="Visa telemetri-logg (T)"
+          className={`fx-toggle ${audioMuted ? '' : 'on'}`}
+          onClick={onToggleAudio}
+          title="Ljud på/av (M)"
         >
-          ⌗ Log
+          {audioMuted ? '⊘' : '♪'} Audio
+        </button>
+        <button
+          className={`fx-toggle ${voiceEnabled ? 'on' : ''}`}
+          onClick={onToggleVoice}
+          title="Kommentator på/av (V)"
+        >
+          🎙 Voice
         </button>
       </div>
       <button className="help-btn" onClick={onShowHelp} title="Genvägar (?)">

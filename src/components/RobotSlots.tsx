@@ -1,5 +1,3 @@
-import { BUILTIN_ROBOTS } from '../robots';
-
 export interface Slot {
   name: string;
   source: string;
@@ -14,7 +12,8 @@ export interface RobotSlotsProps {
   onSelect: (i: number) => void;
   onToggle: (i: number) => void;
   onRename: (i: number, name: string) => void;
-  onLoadBuiltin: (i: number, name: string) => void;
+  onOpenPicker: (i: number) => void;
+  onRandomizeAll: () => void;
 }
 
 export function RobotSlots({
@@ -24,11 +23,22 @@ export function RobotSlots({
   onSelect,
   onToggle,
   onRename,
-  onLoadBuiltin,
+  onOpenPicker,
+  onRandomizeAll,
 }: RobotSlotsProps) {
   return (
     <div>
-      <div className="section-header">Robotslots</div>
+      <div className="section-header">
+        <span className="section-title">Robotslots</span>
+        <button
+          className="section-action"
+          onClick={onRandomizeAll}
+          title="Slumpa fram 4 nya robotar"
+          aria-label="Randomize"
+        >
+          ⤳
+        </button>
+      </div>
       <div className="slots">
         {slots.map((s, i) => {
           const hasError = errorIdxSet.has(i);
@@ -58,25 +68,16 @@ export function RobotSlots({
                 onChange={(e) => onRename(i, e.target.value)}
               />
               <span className="slot-kbd">{i + 1}</span>
-              <select
+              <button
                 className="slot-load"
-                onClick={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    onLoadBuiltin(i, e.target.value);
-                    e.currentTarget.value = '';
-                  }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenPicker(i);
                 }}
-                defaultValue=""
-                title="Ladda exempel"
+                title="Välj robot från bibliotek"
               >
-                <option value="">…</option>
-                {BUILTIN_ROBOTS.map((r) => (
-                  <option key={r.name} value={r.name}>
-                    {r.name}
-                  </option>
-                ))}
-              </select>
+                ⌕
+              </button>
             </div>
           );
         })}

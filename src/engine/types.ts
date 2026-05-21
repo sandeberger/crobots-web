@@ -1,6 +1,14 @@
 import { CompiledRobot } from './opcodes';
 import { VM } from './vm';
 
+export interface RobotCapabilities {
+  drive: boolean;
+  cannon: boolean;
+  scan: boolean;
+  gps: boolean;
+  status: boolean;
+}
+
 export interface Robot {
   id: number;
   name: string;
@@ -25,12 +33,31 @@ export interface Robot {
   trail: TrailPoint[];
   damageFlash: number;
   lastDamage: number;
+  lastAttackerId?: number;
+
+  capabilities: RobotCapabilities;
+  lastScanHeading: number;
+  lastScanTick: number;
+  lastCannonHeading: number;
+  lastCannonTick: number;
+  travel: number;
+}
+
+export interface SmokeParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  age: number;
+  maxAge: number;
+  size: number;
 }
 
 export interface TrailPoint {
   x: number;
   y: number;
   tick: number;
+  heading: number;
 }
 
 export interface ScanPing {
@@ -61,5 +88,12 @@ export interface Explosion {
 export type ArenaEvent =
   | { kind: 'fire'; tick: number; robotId: number; heading: number; range: number }
   | { kind: 'explosion'; tick: number; x: number; y: number }
-  | { kind: 'damage'; tick: number; robotId: number; amount: number; cause: 'missile' | 'wall' | 'collision' }
-  | { kind: 'death'; tick: number; robotId: number };
+  | {
+      kind: 'damage';
+      tick: number;
+      robotId: number;
+      amount: number;
+      cause: 'missile' | 'wall' | 'collision';
+      attackerId?: number;
+    }
+  | { kind: 'death'; tick: number; robotId: number; attackerId?: number };

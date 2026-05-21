@@ -1,16 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { sfx } from './audio/sfx';
 import { Arena } from './components/Arena';
 import { Controls } from './components/Controls';
 import { Editor, EditorDiag } from './components/Editor';
 import { EventLog } from './components/EventLog';
+import { RobotPicker } from './components/RobotPicker';
 import { RobotSlots, Slot } from './components/RobotSlots';
 import { Scoreboard } from './components/Scoreboard';
+import { VoicePicker } from './components/VoicePicker';
 import { ROBOT_COLORS } from './engine/constants';
 import { CompileIssue, prepareMatch, tickMatch } from './engine/match';
+import { useCommentator } from './hooks/useCommentator';
 import { useMatchLoop } from './hooks/useMatchLoop';
-import { BUILTIN_ROBOTS } from './robots';
+import { useSfx } from './hooks/useSfx';
+import { BUILTIN_ROBOTS, ROBOT_INDEX, computeSpeakable, loadRobotSource } from './robots';
 
 const SPEED_PIPS = [1, 4, 16, 64, 250];
+const ZOOM_LEVELS = [1, 1.5, 2, 3];
 
 function initialSlots(): Slot[] {
   return [0, 1, 2, 3].map((i) => {
@@ -35,10 +41,52 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [showScans, setShowScans] = useState(true);
   const [showTelemetry, setShowTelemetry] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [winHistory, setWinHistory] = useState<Record<string, number>>({});
+  const [draws, setDraws] = useState(0);
+  const [matchCount, setMatchCount] = useState(0);
+  const [autoContinue, setAutoContinue] = useState(false);
+  const [audioMuted, setAudioMuted] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(
+    () => typeof window !== 'undefined' && 'speechSynthesis' in window,
+  );
+  const [voiceName, setVoiceName] = useState('');
+  const [pickerSlot, setPickerSlot] = useState<number | null>(null);
+  const [editorMode, setEditorMode] = useState<'normal' | 'minimized' | 'expanded'>('normal');
 
   const { match, setMatch } = useMatchLoop(running, speed);
 
+  const speakableByName = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const s of slots) m[s.name] = computeSpeakable(s.name);
+    return m;
+  }, [slots]);
+
+  useSfx(match, audioMuted, running);
+  useCommentator({ match, running, enabled: voiceEnabled, voiceName, speakableByName });
+
+  useEffect(() => {
+    const unlock = () => sfx.unlock();
+    window.addEventListener('pointerdown', unlock, { once: true });
+    window.addEventListener('keydown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
   const enabledSlots = useMemo(() => slots.filter((s) => s.enabled), [slots]);
+
+  const slotsSignature = useMemo(
+    () => slots.map((s) => `${s.enabled ? '+' : '-'}${s.name}\0${s.source}`).join('|'),
+    [slots],
+  );
+
+  useEffect(() => {
+    setWinHistory({});
+    setDraws(0);
+    setMatchCount(0);
+  }, [slotsSignature]);
 
   const updateSource = useCallback((i: number, src: string) => {
     setSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, source: src } : s)));
@@ -52,11 +100,66 @@ export default function App() {
     setSlots((prev) => prev.map((s, idx) => (idx === i ? { ...s, enabled: !s.enabled } : s)));
   }, []);
 
-  const loadBuiltin = useCallback((i: number, name: string) => {
-    const bot = BUILTIN_ROBOTS.find((b) => b.name === name);
-    if (!bot) return;
+  const loadIntoSlot = useCallback((i: number, name: string, source: string) => {
     setSlots((prev) =>
-      prev.map((s, idx) => (idx === i ? { ...s, name: bot.name, source: bot.source } : s)),
+      prev.map((s, idx) => (idx === i ? { ...s, name, source } : s)),
+    );
+  }, []);
+
+  const saveActiveSource = useCallback(() => {
+    const slot = slots[activeIdx];
+    if (!slot) return;
+    const filename = `${slot.name || 'robot'}.r`;
+    const blob = new Blob([slot.source], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }, [slots, activeIdx]);
+
+  const openSourceIntoActive = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.r,.txt,text/plain';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = String(reader.result ?? '');
+        const base = file.name.replace(/\.(r|txt)$/i, '');
+        loadIntoSlot(activeIdx, base || 'robot', src);
+      };
+      reader.readAsText(file);
+    };
+    input.click();
+  }, [activeIdx, loadIntoSlot]);
+
+  const randomizeAllSlots = useCallback(async () => {
+    if (ROBOT_INDEX.length === 0) return;
+    const picks: number[] = [];
+    const seen = new Set<number>();
+    while (picks.length < 4 && seen.size < ROBOT_INDEX.length) {
+      const i = Math.floor(Math.random() * ROBOT_INDEX.length);
+      if (seen.has(i)) continue;
+      seen.add(i);
+      picks.push(i);
+    }
+    const entries = picks.map((i) => ROBOT_INDEX[i]);
+    const sources = await Promise.all(
+      entries.map((e) => loadRobotSource(e.path).catch(() => null)),
+    );
+    setSlots((prev) =>
+      prev.map((s, idx) => {
+        const entry = entries[idx];
+        const src = sources[idx];
+        if (!entry || !src) return s;
+        return { ...s, name: entry.name, source: src };
+      }),
     );
   }, []);
 
@@ -129,6 +232,18 @@ export default function App() {
     });
   }, []);
 
+  const bumpZoom = useCallback((dir: 1 | -1) => {
+    setZoom((cur) => {
+      const i = ZOOM_LEVELS.findIndex((z) => Math.abs(z - cur) < 0.01);
+      const idx = i === -1 ? 0 : i;
+      const next = Math.max(0, Math.min(ZOOM_LEVELS.length - 1, idx + dir));
+      return ZOOM_LEVELS[next];
+    });
+  }, []);
+  const zoomIn = useCallback(() => bumpZoom(1), [bumpZoom]);
+  const zoomOut = useCallback(() => bumpZoom(-1), [bumpZoom]);
+  const zoomReset = useCallback(() => setZoom(1), []);
+
   useEffect(() => {
     const isEditable = (el: EventTarget | null): boolean => {
       if (!(el instanceof HTMLElement)) return false;
@@ -193,19 +308,56 @@ export default function App() {
           e.preventDefault();
           setShowTelemetry((v) => !v);
           break;
+        case 'z':
+        case 'Z':
+          e.preventDefault();
+          if (e.shiftKey) bumpZoom(-1);
+          else bumpZoom(1);
+          break;
+        case '0':
+          e.preventDefault();
+          setZoom(1);
+          break;
+        case 'm':
+        case 'M':
+          e.preventDefault();
+          setAudioMuted((v) => !v);
+          break;
+        case 'v':
+        case 'V':
+          e.preventDefault();
+          setVoiceEnabled((v) => !v);
+          break;
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [helpOpen, togglePlay, handleStep, handleReset, bumpSpeed]);
+  }, [helpOpen, togglePlay, handleStep, handleReset, bumpSpeed, bumpZoom]);
 
   useEffect(() => {
     if (match?.finished && !matchFinished) {
       setMatchFinished(true);
+      setAutoContinue(running);
       setRunning(false);
-      setWinner(match.winner ? match.winner.name : null);
+      const winName = match.winner ? match.winner.name : null;
+      setWinner(winName);
+      setMatchCount((n) => n + 1);
+      if (winName) {
+        setWinHistory((prev) => ({ ...prev, [winName]: (prev[winName] ?? 0) + 1 }));
+      } else {
+        setDraws((d) => d + 1);
+      }
     }
-  }, [match, matchFinished]);
+  }, [match, match?.finished, matchFinished, running]);
+
+  useEffect(() => {
+    if (!matchFinished) return;
+    const t = setTimeout(() => {
+      const ok = prepare();
+      if (ok && autoContinue) setRunning(true);
+    }, 2800);
+    return () => clearTimeout(t);
+  }, [matchFinished, prepare, autoContinue]);
 
   const activeSlot = slots[activeIdx];
   const activeIssue = issues.find((i) => i.slotIndex === activeIdx);
@@ -216,7 +368,7 @@ export default function App() {
   const errorIdxSet = useMemo(() => new Set(issues.map((i) => i.slotIndex)), [issues]);
 
   return (
-    <div className="app">
+    <div className={`app editor-${editorMode}`}>
       <header className="header">
         <div className="brand">
           <span className="brand-icon">⬢</span>
@@ -229,14 +381,16 @@ export default function App() {
           hasMatch={!!match}
           speed={speed}
           showScans={showScans}
-          showTelemetry={showTelemetry}
+          audioMuted={audioMuted}
+          voiceEnabled={voiceEnabled}
           onStart={handleStart}
           onPause={handlePause}
           onStep={handleStep}
           onReset={handleReset}
           onSpeedChange={setSpeed}
           onToggleScans={() => setShowScans((v) => !v)}
-          onToggleTelemetry={() => setShowTelemetry((v) => !v)}
+          onToggleAudio={() => setAudioMuted((v) => !v)}
+          onToggleVoice={() => setVoiceEnabled((v) => !v)}
           onShowHelp={() => setHelpOpen(true)}
         />
       </header>
@@ -250,13 +404,28 @@ export default function App() {
             onSelect={setActiveIdx}
             onToggle={toggleSlot}
             onRename={renameSlot}
-            onLoadBuiltin={loadBuiltin}
+            onOpenPicker={(i) => {
+              setActiveIdx(i);
+              setPickerSlot(i);
+            }}
+            onRandomizeAll={randomizeAllSlots}
           />
-          {showTelemetry && <EventLog state={match} />}
+          <EventLog
+            state={match}
+            expanded={showTelemetry}
+            onToggle={() => setShowTelemetry((v) => !v)}
+          />
         </aside>
 
         <section className="center">
-          <Arena state={match} showScans={showScans} />
+          <Arena
+            state={match}
+            showScans={showScans}
+            zoom={zoom}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onZoomReset={zoomReset}
+          />
           {winner !== null && matchFinished && (
             <div className={`winner-banner ${winner ? '' : 'draw'}`}>
               {winner ? `◆ Victor: ${winner}` : '✕ Stalemate'}
@@ -273,7 +442,12 @@ export default function App() {
         </section>
 
         <aside className="right">
-          <Scoreboard state={match} />
+          <Scoreboard
+            state={match}
+            winHistory={winHistory}
+            draws={draws}
+            matchCount={matchCount}
+          />
         </aside>
       </main>
 
@@ -288,6 +462,45 @@ export default function App() {
               ⚠ rad {activeIssue.line}: {activeIssue.message}
             </span>
           )}
+          <div className="editor-actions">
+            <button
+              className="editor-action"
+              onClick={openSourceIntoActive}
+              title="Öppna .r-fil"
+              aria-label="Öppna"
+            >
+              ⤒
+            </button>
+            <button
+              className="editor-action"
+              onClick={saveActiveSource}
+              title={`Spara som ${activeSlot.name || 'robot'}.r`}
+              aria-label="Spara"
+            >
+              ⤓
+            </button>
+            <span className="editor-action-divider" />
+            <button
+              className="editor-action"
+              onClick={() =>
+                setEditorMode((m) => (m === 'minimized' ? 'normal' : 'minimized'))
+              }
+              title={editorMode === 'minimized' ? 'Återställ kodpanel' : 'Minimera kodpanel'}
+              aria-label="Minimera"
+            >
+              {editorMode === 'minimized' ? '▴' : '▾'}
+            </button>
+            <button
+              className="editor-action"
+              onClick={() =>
+                setEditorMode((m) => (m === 'expanded' ? 'normal' : 'expanded'))
+              }
+              title={editorMode === 'expanded' ? 'Återställ kodpanel' : 'Expandera kodpanel'}
+              aria-label="Expandera"
+            >
+              ⛶
+            </button>
+          </div>
         </div>
         <Editor
           key={activeIdx}
@@ -297,10 +510,22 @@ export default function App() {
         />
       </section>
 
+      <RobotPicker
+        open={pickerSlot !== null}
+        slotIdx={pickerSlot}
+        onClose={() => setPickerSlot(null)}
+        onSelect={(name, source) => {
+          if (pickerSlot !== null) loadIntoSlot(pickerSlot, name, source);
+          setPickerSlot(null);
+        }}
+      />
+
       {helpOpen && (
         <div className="help-overlay" onClick={() => setHelpOpen(false)}>
           <div className="help-card" onClick={(e) => e.stopPropagation()}>
-            <h2>Tangentbordsgenvägar</h2>
+            <h2>Kommentator-röst</h2>
+            <VoicePicker value={voiceName} onChange={setVoiceName} />
+            <h2 style={{ marginTop: 18 }}>Tangentbordsgenvägar</h2>
             <div className="help-row"><span>Play / pause</span><span className="help-key">Space</span></div>
             <div className="help-row"><span>Steg ett tick</span><span className="help-key">S</span></div>
             <div className="help-row"><span>Reset</span><span className="help-key">R</span></div>
@@ -308,6 +533,10 @@ export default function App() {
             <div className="help-row"><span>Öka / sänk speed</span><span className="help-key">+ / –</span></div>
             <div className="help-row"><span>Skanner-svep på/av</span><span className="help-key">X</span></div>
             <div className="help-row"><span>Telemetri-logg på/av</span><span className="help-key">T</span></div>
+            <div className="help-row"><span>Zooma in / ut</span><span className="help-key">Z / Shift+Z</span></div>
+            <div className="help-row"><span>Återställ zoom</span><span className="help-key">0</span></div>
+            <div className="help-row"><span>Mute ljud</span><span className="help-key">M</span></div>
+            <div className="help-row"><span>Kommentator av/på</span><span className="help-key">V</span></div>
             <div className="help-row"><span>Hjälp</span><span className="help-key">?</span></div>
             <button className="btn help-close" onClick={() => setHelpOpen(false)}>Stäng (Esc)</button>
           </div>

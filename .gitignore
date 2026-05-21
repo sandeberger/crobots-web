@@ -8,3 +8,5 @@ Thumbs.db
 .env.local
 tsconfig.tsbuildinfo
 *.tsbuildinfo
+bash.exe.stackdump
+.vercel

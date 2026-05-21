@@ -19,10 +19,11 @@ import {
   SCAN_MAX_RESOLUTION,
 } from './constants';
 import { RNG } from './rng';
-import { ArenaEvent, Explosion, Missile, Robot, ScanPing } from './types';
+import { ArenaEvent, Explosion, Missile, Robot, ScanPing, SmokeParticle } from './types';
 
-const TRAIL_MAX = 28;
+const TRAIL_MAX = 40;
 const SCAN_PING_MAX_AGE = 8;
+const SMOKE_MAX = 240;
 
 export class Arena {
   tick = 0;
@@ -30,10 +31,16 @@ export class Arena {
   missiles: Missile[] = [];
   explosions: Explosion[] = [];
   scans: ScanPing[] = [];
+  smoke: SmokeParticle[] = [];
   events: ArenaEvent[] = [];
+  totalFires = 0;
+  totalExplosions = 0;
+  totalScans = 0;
+  totalDeaths = 0;
+  totalEvents = 0;
   rng: RNG;
   private nextMissileId = 1;
-  private eventBudget = 100;
+  private eventBudget = 256;
 
   constructor(rng: RNG) {
     this.rng = rng;
@@ -68,6 +75,9 @@ export class Arena {
       hit: best > 0,
       age: 0,
     });
+    me.lastScanHeading = deg;
+    me.lastScanTick = this.tick;
+    this.totalScans++;
     return best;
   }
 
@@ -88,6 +98,9 @@ export class Arena {
     });
     me.missilesInFlight++;
     me.reload = RELOAD;
+    me.lastCannonHeading = heading;
+    me.lastCannonTick = this.tick;
+    this.totalFires++;
     this.log({ kind: 'fire', tick: this.tick, robotId: me.id, heading, range });
     return 1;
   }
@@ -124,6 +137,15 @@ export class Arena {
 
     for (const s of this.scans) s.age++;
     this.scans = this.scans.filter((s) => s.age < SCAN_PING_MAX_AGE);
+
+    for (const p of this.smoke) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.03;
+      p.size += 0.18;
+      p.age++;
+    }
+    this.smoke = this.smoke.filter((p) => p.age < p.maxAge);
 
     for (const r of this.robots) {
       if (!r.alive) continue;
@@ -162,11 +184,19 @@ export class Arena {
           r.x = nx;
           r.y = ny;
         }
+        r.travel += step;
+      }
+
+      if (r.alive && r.damage >= 50) {
+        const intensity = (r.damage - 49) / 51;
+        if (this.rng.next() < intensity * 0.6) this.spawnSmoke(r);
+        if (r.damage >= 80 && this.rng.next() < intensity * 0.55) this.spawnSmoke(r);
+        if (r.damage >= 92 && this.rng.next() < 0.4) this.spawnSmoke(r);
       }
 
       const last = r.trail[r.trail.length - 1];
       if (!last || Math.hypot(r.x - last.x, r.y - last.y) > 1.5) {
-        r.trail.push({ x: r.x, y: r.y, tick: this.tick });
+        r.trail.push({ x: r.x, y: r.y, tick: this.tick, heading: r.heading });
         if (r.trail.length > TRAIL_MAX) r.trail.shift();
       }
     }
@@ -192,13 +222,20 @@ export class Arena {
         r.damage = 100;
         r.speed = 0;
         r.desiredSpeed = 0;
-        this.log({ kind: 'death', tick: this.tick, robotId: r.id });
+        this.totalDeaths++;
+        this.log({
+          kind: 'death',
+          tick: this.tick,
+          robotId: r.id,
+          attackerId: r.lastAttackerId,
+        });
       }
     }
   }
 
   private explodeMissile(m: Missile): void {
     this.explosions.push({ x: m.x, y: m.y, age: 0 });
+    this.totalExplosions++;
     this.log({ kind: 'explosion', tick: this.tick, x: m.x, y: m.y });
     for (const r of this.robots) {
       if (!r.alive) continue;
@@ -207,21 +244,44 @@ export class Arena {
       if (d <= DMG_DIRECT_RADIUS) amount = DAMAGE_DIRECT;
       else if (d <= DMG_NEAR_RADIUS) amount = DAMAGE_NEAR;
       else if (d <= DMG_FAR_RADIUS) amount = DAMAGE_FAR;
-      if (amount > 0) this.applyDamage(r, amount, 'missile');
+      if (amount > 0) this.applyDamage(r, amount, 'missile', m.ownerId);
     }
     const owner = this.robots.find((r) => r.id === m.ownerId);
     if (owner) owner.missilesInFlight = Math.max(0, owner.missilesInFlight - 1);
   }
 
-  private applyDamage(r: Robot, amount: number, cause: 'missile' | 'wall' | 'collision'): void {
+  private spawnSmoke(r: Robot): void {
+    if (this.smoke.length >= SMOKE_MAX) return;
+    const jitter = () => this.rng.next() * 6 - 3;
+    this.smoke.push({
+      x: r.x + jitter(),
+      y: r.y + jitter(),
+      vx: this.rng.next() * 0.6 - 0.3,
+      vy: 0.5 + this.rng.next() * 0.5,
+      age: 0,
+      maxAge: 40 + this.rng.int(20),
+      size: 2 + this.rng.next() * 2,
+    });
+  }
+
+  private applyDamage(
+    r: Robot,
+    amount: number,
+    cause: 'missile' | 'wall' | 'collision',
+    attackerId?: number,
+  ): void {
     r.damage = Math.min(100, r.damage + amount);
     r.lastDamage = amount;
     r.damageFlash = 6;
-    this.log({ kind: 'damage', tick: this.tick, robotId: r.id, amount, cause });
+    if (attackerId !== undefined && attackerId !== r.id) {
+      r.lastAttackerId = attackerId;
+    }
+    this.log({ kind: 'damage', tick: this.tick, robotId: r.id, amount, cause, attackerId });
   }
 
   private log(e: ArenaEvent): void {
     this.events.push(e);
+    this.totalEvents++;
     if (this.events.length > this.eventBudget) {
       this.events.splice(0, this.events.length - this.eventBudget);
     }
