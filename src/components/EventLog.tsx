@@ -63,7 +63,7 @@ export function EventLog({ state, expanded, onToggle }: EventLogProps) {
         <button
           className="section-action"
           onClick={onToggle}
-          title={expanded ? 'Dölj logg (T)' : 'Visa logg (T)'}
+          title={expanded ? 'Hide log (T)' : 'Show log (T)'}
           aria-label="Toggle telemetry"
         >
           {expanded ? '▾' : '▸'}

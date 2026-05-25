@@ -28,7 +28,7 @@ export function VoicePicker({ value, onChange }: VoicePickerProps) {
   }, []);
 
   if (!commentator.available()) {
-    return <div className="muted" style={{ fontSize: 11 }}>Talsyntes ej tillgänglig i denna webbläsare.</div>;
+    return <div className="muted" style={{ fontSize: 11 }}>Speech synthesis is not available in this browser.</div>;
   }
 
   return (

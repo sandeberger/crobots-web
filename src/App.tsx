@@ -432,11 +432,11 @@ export default function App() {
             </div>
           )}
           {enabledSlots.length < 2 && (
-            <div className="info-banner">Aktivera minst 2 robotar för att starta match</div>
+            <div className="info-banner">Enable at least 2 robots to start a match</div>
           )}
           {issues.length > 0 && (
             <div className="error-banner">
-              Kompileringsfel: {issues.map((i) => `${i.name} (rad ${i.line})`).join(', ')}
+              Compile error: {issues.map((i) => `${i.name} (line ${i.line})`).join(', ')}
             </div>
           )}
         </section>
@@ -459,23 +459,23 @@ export default function App() {
           </span>
           {activeIssue && (
             <span className="editor-err">
-              ⚠ rad {activeIssue.line}: {activeIssue.message}
+              ⚠ line {activeIssue.line}: {activeIssue.message}
             </span>
           )}
           <div className="editor-actions">
             <button
               className="editor-action"
               onClick={openSourceIntoActive}
-              title="Öppna .r-fil"
-              aria-label="Öppna"
+              title="Open .r file"
+              aria-label="Open"
             >
               ⤒
             </button>
             <button
               className="editor-action"
               onClick={saveActiveSource}
-              title={`Spara som ${activeSlot.name || 'robot'}.r`}
-              aria-label="Spara"
+              title={`Save as ${activeSlot.name || 'robot'}.r`}
+              aria-label="Save"
             >
               ⤓
             </button>
@@ -485,8 +485,8 @@ export default function App() {
               onClick={() =>
                 setEditorMode((m) => (m === 'minimized' ? 'normal' : 'minimized'))
               }
-              title={editorMode === 'minimized' ? 'Återställ kodpanel' : 'Minimera kodpanel'}
-              aria-label="Minimera"
+              title={editorMode === 'minimized' ? 'Restore code panel' : 'Minimize code panel'}
+              aria-label="Minimize"
             >
               {editorMode === 'minimized' ? '▴' : '▾'}
             </button>
@@ -495,8 +495,8 @@ export default function App() {
               onClick={() =>
                 setEditorMode((m) => (m === 'expanded' ? 'normal' : 'expanded'))
               }
-              title={editorMode === 'expanded' ? 'Återställ kodpanel' : 'Expandera kodpanel'}
-              aria-label="Expandera"
+              title={editorMode === 'expanded' ? 'Restore code panel' : 'Expand code panel'}
+              aria-label="Expand"
             >
               ⛶
             </button>
@@ -523,22 +523,22 @@ export default function App() {
       {helpOpen && (
         <div className="help-overlay" onClick={() => setHelpOpen(false)}>
           <div className="help-card" onClick={(e) => e.stopPropagation()}>
-            <h2>Kommentator-röst</h2>
+            <h2>Commentator voice</h2>
             <VoicePicker value={voiceName} onChange={setVoiceName} />
-            <h2 style={{ marginTop: 18 }}>Tangentbordsgenvägar</h2>
+            <h2 style={{ marginTop: 18 }}>Keyboard shortcuts</h2>
             <div className="help-row"><span>Play / pause</span><span className="help-key">Space</span></div>
-            <div className="help-row"><span>Steg ett tick</span><span className="help-key">S</span></div>
+            <div className="help-row"><span>Step one tick</span><span className="help-key">S</span></div>
             <div className="help-row"><span>Reset</span><span className="help-key">R</span></div>
-            <div className="help-row"><span>Byt slot</span><span className="help-key">1 – 4</span></div>
-            <div className="help-row"><span>Öka / sänk speed</span><span className="help-key">+ / –</span></div>
-            <div className="help-row"><span>Skanner-svep på/av</span><span className="help-key">X</span></div>
-            <div className="help-row"><span>Telemetri-logg på/av</span><span className="help-key">T</span></div>
-            <div className="help-row"><span>Zooma in / ut</span><span className="help-key">Z / Shift+Z</span></div>
-            <div className="help-row"><span>Återställ zoom</span><span className="help-key">0</span></div>
-            <div className="help-row"><span>Mute ljud</span><span className="help-key">M</span></div>
-            <div className="help-row"><span>Kommentator av/på</span><span className="help-key">V</span></div>
-            <div className="help-row"><span>Hjälp</span><span className="help-key">?</span></div>
-            <button className="btn help-close" onClick={() => setHelpOpen(false)}>Stäng (Esc)</button>
+            <div className="help-row"><span>Switch slot</span><span className="help-key">1 – 4</span></div>
+            <div className="help-row"><span>Increase / decrease speed</span><span className="help-key">+ / –</span></div>
+            <div className="help-row"><span>Scanner sweep on/off</span><span className="help-key">X</span></div>
+            <div className="help-row"><span>Telemetry log on/off</span><span className="help-key">T</span></div>
+            <div className="help-row"><span>Zoom in / out</span><span className="help-key">Z / Shift+Z</span></div>
+            <div className="help-row"><span>Reset zoom</span><span className="help-key">0</span></div>
+            <div className="help-row"><span>Mute audio</span><span className="help-key">M</span></div>
+            <div className="help-row"><span>Commentator on/off</span><span className="help-key">V</span></div>
+            <div className="help-row"><span>Help</span><span className="help-key">?</span></div>
+            <button className="btn help-close" onClick={() => setHelpOpen(false)}>Close (Esc)</button>
           </div>
         </div>
       )}

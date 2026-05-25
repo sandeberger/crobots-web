@@ -74,11 +74,11 @@ export function Arena({ state, showScans, zoom, onZoomIn, onZoomOut, onZoomReset
       <div className="arena-corner bl" />
       <div className="arena-corner br" />
       <div className="arena-zoom">
-        <button className="zoom-btn" onClick={onZoomOut} title="Zooma ut (Z)" aria-label="Zooma ut">−</button>
-        <button className="zoom-label" onClick={onZoomReset} title="Återställ (0)">
+        <button className="zoom-btn" onClick={onZoomOut} title="Zoom out (Z)" aria-label="Zoom out">−</button>
+        <button className="zoom-label" onClick={onZoomReset} title="Reset (0)">
           {Math.round(zoom * 100)}%
         </button>
-        <button className="zoom-btn" onClick={onZoomIn} title="Zooma in (Z)" aria-label="Zooma in">+</button>
+        <button className="zoom-btn" onClick={onZoomIn} title="Zoom in (Z)" aria-label="Zoom in">+</button>
       </div>
     </div>
   );

@@ -40,13 +40,13 @@ export function Controls({
   return (
     <div className="controls">
       {running ? (
-        <button onClick={onPause} className="btn btn-pause" title="Pausa (Space)">
-          ❚❚ Pausa
+        <button onClick={onPause} className="btn btn-pause" title="Pause (Space)">
+          ❚❚ Pause
           <span className="kbd">SPACE</span>
         </button>
       ) : (
-        <button onClick={onStart} className="btn btn-start" title="Starta (Space)">
-          {finished ? '↻ Ny match' : hasMatch ? '▶ Fortsätt' : '▶ Starta'}
+        <button onClick={onStart} className="btn btn-start" title="Start (Space)">
+          {finished ? '↻ New match' : hasMatch ? '▶ Resume' : '▶ Start'}
           <span className="kbd">SPACE</span>
         </button>
       )}
@@ -54,9 +54,9 @@ export function Controls({
         onClick={onStep}
         disabled={running || finished}
         className="btn"
-        title="Stega ett tick (S)"
+        title="Step one tick (S)"
       >
-        ▸▮ Steg
+        ▸▮ Step
         <span className="kbd">S</span>
       </button>
       <button onClick={onReset} className="btn" title="Reset (R)">
@@ -65,13 +65,13 @@ export function Controls({
       </button>
       <div className="speed">
         <span>Speed</span>
-        <div className="speed-track" role="group" aria-label="Hastighet">
+        <div className="speed-track" role="group" aria-label="Speed">
           {SPEED_PIPS.map((s) => (
             <button
               key={s}
               className={`speed-pip ${speed === s ? 'active' : ''}`}
               onClick={() => onSpeedChange(s)}
-              title={`${s}× hastighet`}
+              title={`${s}× speed`}
             >
               {s}×
             </button>
@@ -82,26 +82,26 @@ export function Controls({
         <button
           className={`fx-toggle ${showScans ? 'on' : ''}`}
           onClick={onToggleScans}
-          title="Visa skanner-svep (X)"
+          title="Show scanner sweep (X)"
         >
           ⌖ Scan
         </button>
         <button
           className={`fx-toggle ${audioMuted ? '' : 'on'}`}
           onClick={onToggleAudio}
-          title="Ljud på/av (M)"
+          title="Audio on/off (M)"
         >
           {audioMuted ? '⊘' : '♪'} Audio
         </button>
         <button
           className={`fx-toggle ${voiceEnabled ? 'on' : ''}`}
           onClick={onToggleVoice}
-          title="Kommentator på/av (V)"
+          title="Commentator on/off (V)"
         >
           🎙 Voice
         </button>
       </div>
-      <button className="help-btn" onClick={onShowHelp} title="Genvägar (?)">
+      <button className="help-btn" onClick={onShowHelp} title="Shortcuts (?)">
         ?
       </button>
     </div>

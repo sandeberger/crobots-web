@@ -78,13 +78,13 @@ export function RobotPicker({ open, slotIdx, onClose, onSelect }: RobotPickerPro
       <div className="picker-card" onClick={(e) => e.stopPropagation()}>
         <div className="picker-header">
           <div>
-            <h2>Välj robot</h2>
+            <h2>Select robot</h2>
             <span className="picker-sub">
               {slotIdx !== null && `→ Slot ${slotIdx + 1}  ·  `}
-              {filtered.length} av {ROBOT_INDEX.length}
+              {filtered.length} of {ROBOT_INDEX.length}
             </span>
           </div>
-          <button className="picker-close" onClick={onClose} aria-label="Stäng">
+          <button className="picker-close" onClick={onClose} aria-label="Close">
             ×
           </button>
         </div>
@@ -94,7 +94,7 @@ export function RobotPicker({ open, slotIdx, onClose, onSelect }: RobotPickerPro
             ref={inputRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Sök robot eller kategori…"
+            placeholder="Search robot or category…"
             type="search"
             autoComplete="off"
             spellCheck={false}
@@ -106,7 +106,7 @@ export function RobotPicker({ open, slotIdx, onClose, onSelect }: RobotPickerPro
             className={`picker-cat-pill ${category === null ? 'active' : ''}`}
             onClick={() => setCategory(null)}
           >
-            Alla
+            All
             <span className="picker-cat-count">{ROBOT_INDEX.length}</span>
           </button>
           {categories.map(([cat, n]) => (
@@ -123,7 +123,7 @@ export function RobotPicker({ open, slotIdx, onClose, onSelect }: RobotPickerPro
 
         <div className="picker-body">
           {visible.length === 0 ? (
-            <div className="picker-empty">Inga träffar</div>
+            <div className="picker-empty">No matches</div>
           ) : (
             <div className="picker-grid">
               {visible.map((r) => (
@@ -142,7 +142,7 @@ export function RobotPicker({ open, slotIdx, onClose, onSelect }: RobotPickerPro
           )}
           {truncated && (
             <div className="picker-truncated">
-              Visar första {PAGE_LIMIT} av {filtered.length}. Förfina sökningen för fler träffar.
+              Showing first {PAGE_LIMIT} of {filtered.length}. Refine your search for more matches.
             </div>
           )}
         </div>

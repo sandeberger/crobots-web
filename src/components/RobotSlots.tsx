@@ -29,11 +29,11 @@ export function RobotSlots({
   return (
     <div>
       <div className="section-header">
-        <span className="section-title">Robotslots</span>
+        <span className="section-title">Robot slots</span>
         <button
           className="section-action"
           onClick={onRandomizeAll}
-          title="Slumpa fram 4 nya robotar"
+          title="Randomize 4 new robots"
           aria-label="Randomize"
         >
           ⤳
@@ -58,7 +58,7 @@ export function RobotSlots({
                 checked={s.enabled}
                 onClick={(e) => e.stopPropagation()}
                 onChange={() => onToggle(i)}
-                title="Inkludera i match"
+                title="Include in match"
               />
               <input
                 className="slot-name"
@@ -74,7 +74,7 @@ export function RobotSlots({
                   e.stopPropagation();
                   onOpenPicker(i);
                 }}
-                title="Välj robot från bibliotek"
+                title="Select robot from library"
               >
                 ⌕
               </button>
